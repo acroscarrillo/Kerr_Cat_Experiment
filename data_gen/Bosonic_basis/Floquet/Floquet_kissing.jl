@@ -1,4 +1,4 @@
-include("../src/src.jl") # import src.jl which has creation/annahilation operators defined
+include("../../../src/src.jl") # import src.jl which has creation/annahilation operators defined
 
 using DataFrames # this is like pandas
 using CSV 

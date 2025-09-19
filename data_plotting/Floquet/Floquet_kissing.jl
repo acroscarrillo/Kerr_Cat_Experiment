@@ -1,7 +1,9 @@
 include("../src/src.jl")
 
+using CSV
 using StatsPlots
 using LaTeXStrings
+using DataFrames
 
 df = DataFrame(CSV.File("data/floquet_kissing.csv"))
 

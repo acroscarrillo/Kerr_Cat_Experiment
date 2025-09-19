@@ -3,7 +3,7 @@ using CSV
 using ProgressBars
 using LaTeXStrings # latex support for sexy figs
 using NPZ
-using Forecast
+# using Forecast
 using Plots
 
 ϵ_1_array = Vector( range(0,13.69,length=300) )
@@ -21,6 +21,7 @@ heatmap_mat_exp = exp_data["arr_2"] # μs, but irrelant for now
 
 ϵ_1_array_K = ϵ_1_array_exp./K_exp # Units of Kerr
 ϵ_2_array_K = ϵ_2_array_exp./K_exp # Units of Kerr
+
 
 heatmap_exp = heatmap(ϵ_1_array_exp,ϵ_2_array_exp,heatmap_mat_exp,xlab=L"\epsilon_1/K",ylab=L"\epsilon_2/K",title="Experiment",titlefontsize=12,xtickfontsize=8,ytickfontsize=8,guidefont=font(12),height=400,colorbar=true,dpi=600, size=(720,400),clim=(0,400))
 
@@ -60,5 +61,12 @@ for n=1:4
     vs = predict(model, us)
     push!(plots_array,plot!(us, vs, label="Fit (LOESS)",legend=true,legendfontsize=6))
 end
-plot(plots_array..., layout = l)
-savefig("delete.png")
+
+
+#pt = 0.0138889 
+width_pts = 246.0  # or any other value
+inches_per_points = 1.0/72.27
+width_inches = width_pts *inches_per_points
+width_px= width_inches*100  # or  width_inches*DPI
+plot(plots_array..., layout = l, size = (2*width_px,width_px*0.5))
+# savefig("delete.png")

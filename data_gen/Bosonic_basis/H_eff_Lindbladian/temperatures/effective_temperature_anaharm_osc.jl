@@ -1,0 +1,215 @@
+# !/usr/bin/env julia
+
+# @btime eigen(H_super_op( -H_eff(35,0,1,0,12) ) + C_ops_super) 2.177 s (54 allocations: 128.60 MiB)
+
+using LinearAlgebra
+using NPZ
+using Roots
+using Flux
+using LsqFit
+using StatsBase
+using ProgressBars
+using LaTeXStrings
+using Plots
+
+⦼(A,B) = kron(A,B)
+
+global ħ = 1.054e-34  # Js
+global k_b = 1.38e-23 # J/K
+
+function a(N::Int)
+    a = zeros(Float64, (N, N))
+    for n in 1:N-1
+        a[n,n+1] = sqrt(n)
+    end
+    return a
+end
+
+function H_anharm(N,ω,K)
+    A = a(N) # annahilation op. up to dim N
+    return ω*A'*A + K*(A')^2*A^2 
+end
+
+function C_super_ops(C_ops)
+    N = size(C_ops[1])[1]
+    D_temp = zeros(N^2,N^2)
+    for C in C_ops
+        D_temp += transpose(C') ⦼ C 
+        D_temp += -0.5 * I(N) ⦼ (C'*C)
+        D_temp += -0.5 * transpose(C'*C) ⦼ I(N)
+    end
+    return D_temp
+end
+
+function H_super_op(H)
+    N = size(H)[1]
+    return  -im * ( I(N) ⦼ H - transpose(H) ⦼ I(N) )
+end
+
+function smallest_nonzero_real(vec)
+    temp_real = abs.(real.(vec))
+    temp_non_zero = temp_real[ temp_real .> 1e-10 ]
+    return minimum(temp_non_zero)
+end
+
+function coherent_state(N,α)
+    A = a(N)
+    vac = zeros(N)
+    vac[1] = 1
+    coh_state =  exp(-α*A+(α*A)')*vac
+    return coh_state/norm(coh_state)
+end
+
+function coherent_state(N,x,p)
+    α =  (x + im*p)/√(2) 
+    return coherent_state(N,α)
+end
+
+function f_2_fit(t,p)
+    τ, O = p[1], p[2]
+    return (1 .- exp.(-t/τ)) .+ O*(1 .- exp.(-t/τ))
+end
+
+function get_fit_params(P_array, t_array, p0=[10.0,0.5])
+    fit = curve_fit(f_2_fit, t_array, P_array, p0,lower=[0.0,0.0])
+    return fit.param
+end
+
+function get_beta(ρ,H)
+    p_n, ϕ_n_mat = eigen(ρ)
+    temp_array = []
+    for n=1:length(E_n)
+        for m=1:length(E_n)
+            if n>m
+                E_n[m] =  ϕ_n_mat[:,m]' * H * ϕ_n_mat[:,m]
+                E_n[n] =  ϕ_n_mat[:,n]' * H * ϕ_n_mat[:,n]
+                push!(temp_array, log(p_n[n]/p_n[m])/(E_n[m]-E_n[n])   )
+            end
+        end
+    end
+    return mean(temp_array),std(temp_array),temp_array[1]
+end
+
+function get_beta_array(ρ,H,N_thresh)
+    p_array, ϕ_n_mat = eigen(ρ)
+    E_array, ψ_n_mat = eigen(H)
+    p_indx = argmax.(eachcol(norm.(ϕ_n_mat'*ψ_n_mat))) # match ϕ_n's with ψ_n's
+    beta_array = []
+    for n=2:N_thresh
+        m = n-1
+        p_n, p_m = norm(p_array[p_indx[n]]), norm(p_array[p_indx[m]])
+        if p_n>1e-6 && p_m>1e-6
+            beta = log( real(p_n)/real(p_m) )/(E_array[m]-E_array[n])
+            push!(beta_array, real(beta))
+        end
+    end
+    return mean(beta_array), std(beta_array)
+end
+
+function tr_dist(A,B)
+    λ_n = eigvals( A - B )
+    return 0.5*sum(abs.(λ_n))
+end
+
+function plank_law(T,ω)
+    β = 1/(k_b*T)
+    return 1 / ( exp(β*ω*ħ) - 1  )  
+end
+
+function temp_nth(n_th,ω)
+    beta =  log(1+ 1/n_th)/(ω)
+    return 1/(beta)
+end
+
+function β_nth(n_th,ω)
+    return log(1+ 1/n_th)/(ω)
+end
+
+
+##############
+# L_mat code #
+##############
+
+N = 40 # scales as N^2
+N_thresh = 20
+
+# Define H_eff parameter space, in units of K
+K = 1
+ω_array = Vector(range(0.1,10,length=100))
+
+# Define collapse ops 
+κ_1 = 0.025 #in units of K
+n_th = 0.05
+κ_p, κ_m = κ_1*n_th, κ_1*(1 + n_th) 
+
+
+# EXPONENTIAL time array
+t_array = exp.( Vector(range(0,log(2e5),length=100)))
+pushfirst!(t_array,0)
+
+display("constructing C_super_op...")
+C_ops = ([ √(κ_p) * a(N)', √(κ_m) * a(N) ])
+C_ops_super = C_super_ops(C_ops)
+
+# start on the left.  well
+ψ_0 = coherent_state(N,-2,0)
+# ψ_0 = coherent_state(N,0,0)
+ρ_0 = ψ_0*ψ_0'
+ρ_0_vec = reshape(ρ_0, N^2)
+
+# Define data form
+# beta_array_temp = zeros( length(ϵ_1_array),Int(0.5*(N_thresh^2-N_thresh)))
+beta_array_mean = zeros( length(ω_array))
+beta_array_std = zeros( length(ω_array))
+
+
+# trace_dist_array_12 = ones( length(ω_1_array))
+trace_dist_array_mean = ones( length(ω_array))
+for (j,ω) in ProgressBar(enumerate(ω_array))
+    H_temp =  H_anharm(N,ω,K)
+    H_temp_super = H_super_op( H_temp )
+    L_temp = H_temp_super + C_ops_super
+    λ_n, ϕ_mat = eigen(L_temp) 
+    ϕ_mat_inv = inv(ϕ_mat)
+
+    exp_infL = ϕ_mat * diagm( exp.(1e7*λ_n) ) * ϕ_mat_inv
+    ρ_ss_vec = exp_infL * ρ_0_vec
+    ρ_ss_mat = reshape(ρ_ss_vec,(N,N))
+
+    # beta_temp = get_beta(ρ_ss_mat,H_temp)
+    temp = get_beta_array(ρ_ss_mat,H_temp,N_thresh)
+    beta_array_mean[j] = temp[1]
+    beta_array_std[j] = temp[2]
+
+
+    ρ_th = exp(-temp[1] * H_temp) / tr(exp(-temp[1] * H_temp))
+    if !(any(x -> isnan(x) || isinf(x), ρ_th))
+        trace_dist_array_mean[j] = tr_dist( ρ_ss_mat/norm(tr(ρ_ss_mat)), ρ_th)
+    end
+    # trace_dist_array_mean[j] = tr_dist( ρ_ss_mat/norm(tr(ρ_ss_mat)), exp(-beta_temp[3] * H_temp)/tr(exp(-beta_temp[1] * H_temp)) )
+end
+
+top = plot(ω_array, trace_dist_array_mean,ylabel=L"\mathrm{TrDist}(\rho_{ss},\rho_{th})", xlabel=L"ω/K",legend=false)
+
+bot = plot(ω_array, beta_array_mean, yerr = beta_array_std,c=:black,lw=2,ylabel=L"\beta_{eff}", xlabel=L"ω/K",label="sim")
+plot!(ω_array, beta_array_mean,c=:red,lw=2,ylabel=L"\beta_{eff}", xlabel=L"ω/K",label="sim")
+plot!(ω_array, β_nth.(n_th,ω_array),label="theo",ls=:dash,lw=2)
+
+l = @layout [top; bot]
+
+width_px=340.39020340390204
+plot(top,bot,layout =l,size = (width_px,width_px*1.2),xtickfontsize=8,ytickfontsize=8,dpi=600,widen=false,ylabelfontsize=8,xlabelfontsize=8,tickdirection=:out,fontfamilys = "Times New Roman",tickfontfamily = "Times New Roman",axislabelfontfamily="Times New Roman",grid=false,plot_title="Annaharmonic N=$N, N_thresh=$N_thresh, only nn.",plot_titlefontsize=8)
+
+
+
+
+# Temp Plots
+temperature_array = 1 ./(beta_array_mean)
+top = plot(ω_array, temperature_array,legend=false,c=:black,lw=2,ylabel=L"T_{eff}", xlabel=L"ω/K")
+plot!(ω_array,temp_nth.(n_th,ω_array),lw=2,ls=:dash)
+
+bot = plot(ω_array, std(temperature_array*1000,dims=2)*1000,legend=false,c=:black,ms=2,ylabel=L"\sigma(T_{eff})"*" (mK)", xlabel=L"ω/K")
+
+l = @layout [top; bot]
+width_px=340.39020340390204
+plot(top,bot,layout =l,size = (width_px,width_px*1.6),xtickfontsize=8,ytickfontsize=8,dpi=600,widen=false,ylabelfontsize=8,xlabelfontsize=8,tickdirection=:out,fontfamilys = "Times New Roman",tickfontfamily = "Times New Roman",axislabelfontfamily="Times New Roman",grid=false,plot_title="N=$N, N_thresh=$N_thresh, only nn.",plot_titlefontsize=8)

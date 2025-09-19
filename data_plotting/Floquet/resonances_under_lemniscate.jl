@@ -13,7 +13,7 @@ df_floquet =  DataFrame(CSV.File("data/floquet_crossings_comparison.csv"))
 df_floquet = filter(row ->  row.ΔE_n < 1000, df_floquet)
 
 # n_photons cutoff
-n_photons_cutoff = 12
+n_photons_cutoff = 150
 df_floquet = filter(row ->  row.n_photons < n_photons_cutoff, df_floquet)
 
 
@@ -49,4 +49,8 @@ for (i,ϵ_2) in ProgressBar(enumerate(ϵ_2_array_floq))
     end
 end
 
-heatmap(ϵ_1_array_floq,ϵ_2_array_floq,log.(reso_htmp_array),xlab=xlbl,ylab=ylbl,title="Crossings under the barrier: n_photons_cutoff=$n_photons_cutoff")
+width_pts = 246.0  # or any other value
+inches_per_points = 1.0/72.27
+width_inches = width_pts *inches_per_points
+width_px= width_inches*100  # or  width_inches*DPI
+heatmap(ϵ_1_array_floq,ϵ_2_array_floq,log.(reso_htmp_array),size = (width_px,width_px*0.6),xlab=xlbl,ylab=ylbl,title="Crossings under the barrier: #photons cutoff = $n_photons_cutoff",dpi=600,grid=false,xtickfontsize=8,ytickfontsize=8,guidefont=font(8),widen=false,tickdirection=:out,right_margin = 0Plots.mm,titlefontsize=8,legendfontsize=8,left_margin = 0Plots.mm,bottom_margin = 0Plots.mm,fontfamilys = "Times New Roman",tickfontfamily = "Times New Roman",background_color_subplot=:white,foreground_color_legend = nothing,label=false)

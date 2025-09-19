@@ -13,8 +13,10 @@ N = 30
 ###################
 # experimental data
 ω_0_exp = 6000 # MHz times 2π but it doesnt matter as it will divide out
-g_3 = 3 * (-6.5) #MHz
+g_3 = 3 * (-6.8) #MHz
 g_4 = 4 * (-0.05) #MHz
+# g_3 = 3 * (-7) #MHz
+# g_4 = 4 * (-0.1) #MHz
 ϵ_1_max = 2*14 #MHz
 ϵ_2_max = 18 #MHz
 K_exp = 0.500 #MHz not used anywhere, for reference only 
@@ -27,7 +29,7 @@ g_4 = g_4/ω_0_exp
 ω_0 = ω_0_exp/ω_0_exp
 
 #################################################
-# efine Floquet parameter space in units of ω_0 #
+# Define Floquet parameter space in units of ω_0 #
 #################################################
 # Define Floquet parameter space in units of ω_0
 # ω_1 = 1

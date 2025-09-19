@@ -1,0 +1,38 @@
+include("../../../src/src.jl") # import src.jl which has creation/annahilation operators defined
+
+# @btime eigen(H_super_op( -H_eff(35,0,1,0,12) ) + C_ops_super) 2.177 s (54 allocations: 128.60 MiB)
+
+using DataFrames # this is like pandas
+using CSV 
+using ProgressBars
+using Plots
+using LaTeXStrings
+using NPZ
+
+K = 1
+Δ = -0*K
+ϵ_1_array = Vector(range(0,15,length=200)).*K
+ϵ_2_array = Vector(range(0,12,length=199)).*K
+
+T_1_data_array = -npzread("data_gen/Bosonic_basis/H_eff_Lindbladian/T_1_data_array.npz")
+
+heatmap(ϵ_1_array,ϵ_2_array,log.(T_1_data_array)')
+
+
+ϵ_2_T_max = zeros(length(ϵ_2_array))
+for (j,ϵ_2) in enumerate(ϵ_2_array)
+    ϵ_2_T_max[j] = ϵ_1_array[argmax(T_1_data_array[:,j])]
+end
+plot(ϵ_2_T_max, ϵ_2_array)
+
+@gif for (j,ϵ_2) in enumerate(ϵ_2_array)
+    top = heatmap(ϵ_1_array,ϵ_2_array,log.(T_1_data_array)',widen=false)
+    plot!(ϵ_2_T_max[1:j],ϵ_2_array[1:j],ylim=(0,maximum(ϵ_2_array)),xlim=(0,15),color=:lime,label=false,lw=3)
+
+    ϵ_2_temp = round(ϵ_2,sigdigits=2)
+    bot = plot(ϵ_1_array,log.(T_1_data_array[:,j]),ylab=L"\log \  T_x",xlab=L"ϵ_1/K",title="ϵ_2/K = $ϵ_2_temp",grid=false,ylim=(0*maximum(log.(T_1_data_array[:,j])),maximum(log.(T_1_data_array[:,j]))))
+    vline!([ϵ_2_T_max[j]],c=:lime)
+
+    l = @layout [top ; bot]
+    plot(top,bot, layout= l)
+end

@@ -1,4 +1,4 @@
-include("../../src/src.jl") # import src.jl which has creation/annahilation operators defined
+include("../../../src/src.jl") # import src.jl which has creation/annahilation operators defined
 
 using LinearAlgebra # to diagonalise stuff
 using DataFrames # this is like pandas
@@ -6,7 +6,7 @@ using ProgressBars
 using CSV 
 
 
-N = 20
+N = 30
 
 #########
 # H_eff #
@@ -14,12 +14,11 @@ N = 20
 # Define parameter space
 Δ = 0
 K = 1
-ϵ_1_array = Vector( range(0, 30, length=600) ).*K
-ϵ_2 = 6*K
+ϵ_1_array = Vector( range(0, 15, length=1000) ).*K
+ϵ_2 = 17*K
 
 # Define crossing data form
 h_eff_array = zeros(N*length(ϵ_1_array), 4 ) # data form: ΔE_n | ϵ_2 | ϵ_1 | floquet?
-
 
 # Generate data within parameter space
 counter = 1
@@ -39,20 +38,18 @@ end
 # Define parameter space
 ω_0 = 1
 ω_1 = 1
-g_n = [0.00075, 1.27*10^(-7)].*ω_0
+# g_n = [0.00075, 1.27*10^(-7)].*ω_0
+g_n = [-0.0034, -3.3333333333333335e-5]
 K = (10*g_n[1]^2)/(3*ω_0) - 3*g_n[2]/2
 Ω_1_array = Vector( range(0, (1*K)*(ϵ_1_array[end])/2, length=100) )
 Ω_2_array = Vector( range(0, 3*ϵ_2*ω_0*(1*K)/(4*g_n[1]), length=100) )
-#####################
-# Ω_2_array = [0]     # WATCH THIS!!!!!!!!!!!!!!!
-#####################
 
 # Sanity checks
 Ω_1_max = Ω_1_array[end]
 Ω_2_max = Ω_2_array[end]
 
-ϵ_1_max = 2*Ω_1_max/K # check: in K units like in H_eff above (replace (2*K) -> K)
-ϵ_2_max = Ω_2_max*4*g_n[1]/(3*ω_0*K) # check: in K units like in H_eff above (replace (2*K) -> K)
+ϵ_1_max = 2*Ω_1_max/K # check: in K units like in H_eff above 
+ϵ_2_max = Ω_2_max*4*g_n[1]/(3*ω_0*K) # check: in K units like in H_eff above 
 
 # define data array to store Floquet data
 floquet_array = zeros(N*length(Ω_1_array), 4 )  # data form: ΔE_n | ϵ_2 | ϵ_1 | floquet?
@@ -73,9 +70,14 @@ for (i,_) in enumerate(Ω_2_array)
             Ω_2, Ω_1 = Ω_2_array[i], Ω_1_array[length(Ω_1_array)-j+1]
         end
 
-        ω_2 = 2*ω_a(ω_0,g_n,Ω_2)
-        ϵ_2 = g_n[1]*Π(Ω_2,ω_2)
-        ϵ_1 = 2*Ω_1
+        ω_1, ω_2 = ω_a(ω_0,g_n,Ω_2), 2*ω_a(ω_0,g_n,Ω_2)
+        ϵ_1, ϵ_2 = Ω_1/2, g_n[1]*Π(ω_0,Ω_2,ω_2)
+
+        # ω_2 = 2*ω_a(ω_0,g_n,Ω_2)
+        # # ϵ_2 = g_n[1]*Π(ω_0,Ω_2,ω_2)
+        # # ϵ_2 = g_n[1]*Π(ω_0,Ω_2)
+        # ϵ_2 = Ω_2*4*g_n[1]/(3*ω_0)
+        # ϵ_1 = 2*Ω_1
 
         ϵ_n, ϕ_n = qen_qmodes(N, ω_0, g_n, Ω_1, ω_1, Ω_2, ω_2)
 
@@ -86,7 +88,7 @@ for (i,_) in enumerate(Ω_2_array)
         end
 
         ϵ_0 = ϵ_n[argmax(overlaps)]
-        V_0 = ϕ_n[:,argmax(overlaps)]
+        V_0 = ϕ_n[:,argmax(osverlaps)]
         ϵ_n = sort(mod.(ϵ_n .- ϵ_0, ω_2/2))
         # store data only when Ω_2 of interest is reached
         if Ω_2 == Ω_2_array[end]
@@ -99,8 +101,8 @@ for (i,_) in enumerate(Ω_2_array)
     end
 end
 
-
 # put data in convenient DataFrame object
-df_floquet = DataFrame(vcat(floquet_array,h_eff_array), ["ΔE_n","ϵ_2","ϵ_1","floquet"]) 
-CSV.write("data/comparison_crossings_epsilon_1.csv", df_floquet)
-
+df_floquet = DataFrame(floquet_array, ["ΔE_n","ϵ_2","ϵ_1","floquet"]) 
+df_H_eff = DataFrame(h_eff_array, ["ΔE_n","ϵ_2","ϵ_1","floquet"]) 
+df_combination = DataFrame(vcat(floquet_array,h_eff_array), ["ΔE_n","ϵ_2","ϵ_1","floquet"]) 
+# CSV.write("data/comparison_crossings_epsilon_1.csv", df_floquet)

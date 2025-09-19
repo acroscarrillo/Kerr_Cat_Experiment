@@ -5,7 +5,7 @@ using CSV
 using ProgressBars
 
 
-N = 150 #it works just fine for tests
+N = 50 #it works just fine for tests
 n_op = a(N)'*a(N)
 
 ##############
@@ -15,8 +15,8 @@ n_op = a(N)'*a(N)
 # Define H_eff parameter space, in units of K
 K = 1
 Δ = -0*K
-ϵ_1_array = Vector(range(0,14,length=200)).*K
-ϵ_2_array = Vector(range(0,18,length=200)).*K
+ϵ_1_array = Vector(range(0,16,length=200)).*K
+ϵ_2_array = Vector(range(0,18,length=100)).*K
 ϵ_1_array = ϵ_1_array[2:end]
 ϵ_2_array = ϵ_2_array[2:end]
 
@@ -54,8 +54,8 @@ CSV.write("data/h_eff_crossings_comparison.csv", df_h_eff)
 g_n = [-0.00331793, -5.0892e-5].*ω_0 # experimental values (these has K=678kHz)
 K = (10*g_n[1]^2)/(3*ω_0) - 3*g_n[2]/2
 
-Ω_1_array = Vector(range(0,Ω_1_max_by_ω_0(K,ϵ_1_array),length=200)).*ω_0 
-Ω_2_array = Vector(range(0,Ω_2_max_by_ω_0(K,g_n,ϵ_2_array),length=200)).*ω_0
+Ω_1_array = Vector(range(0,Ω_1_max_by_ω_0(K,ϵ_1_array),length=1000)).*ω_0 
+Ω_2_array = Vector(range(0,Ω_2_max_by_ω_0(K,g_n,ϵ_2_array),length=100)).*ω_0
 Ω_1_array = Ω_1_array[2:end]
 Ω_2_array = Ω_2_array[2:end]
 
@@ -116,10 +116,19 @@ for (i,_) in enumerate(Ω_1_array)
 end
 
 # Put data in convenient DataFrame object and save it
-df_floquet = DataFrame(floquet_data_array, ["ΔE_n","ϵ_1","ϵ_2","n_photons","Floquet?"]) 
+df_floquet = DataFrame(floquet_data_array, ["ΔE_n","ϵ_1","ϵ_2","n_photons","Floquet?"])
 # CSV.write("data/floquet_crossings_comparison.csv", df_floquet)
 
 # Combine both sims into a single dataframe
 # df_comparison = DataFrame(vcat(floquet_data_array,H_eff_data_array), ["ΔE_n","ϵ_1","ϵ_2","n_photons","Floquet"]) 
 
 # CSV.write("data/crossings_comparison.csv", df_comparison)
+
+
+last_ϵ_2 = unique(df_h_eff.ϵ_2)[60]
+df_h_eff_last = filter(row -> row.ϵ_2 == last_ϵ_2, df_h_eff)
+scatter(df_h_eff_last.ϵ_1,df_h_eff_last.ΔE_n,ylim=(0,450),ms=1)
+
+last_ϵ_2 = unique(df_floquet.ϵ_2)[60]
+df_floquet_last = filter(row -> row.ϵ_2 == last_ϵ_2, df_floquet)
+scatter!(df_floquet_last.ϵ_1,df_floquet_last.ΔE_n,ylim=(0,450),ms=1)

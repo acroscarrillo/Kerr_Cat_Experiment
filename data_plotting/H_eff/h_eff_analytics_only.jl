@@ -1,3 +1,5 @@
+include("../../src/main.jl")
+
 using DataFrames # this is like pandas
 using CSV 
 using ProgressBars
@@ -66,8 +68,8 @@ end
 ################
 # Area Heatmap #
 ################
-# x_array = Vector(range(-10,10,length=1000)) #it's a bit choppy but oh well
-# p_array = Vector(range(-6,6,length=1000))
+x_array = Vector(range(-10,10,length=1000)) #it's a bit choppy but oh well
+p_array = Vector(range(-6,6,length=1000))
 
 # left_well_area_matrix = zeros((length(ϵ_2_array),length(ϵ_1_array)))
 # right_well_area_matrix = zeros((length(ϵ_2_array),length(ϵ_1_array)))
@@ -129,4 +131,4 @@ plot!(contour_line(right_well_area_matrix,ϵ_1_array,ϵ_2_array,2*π*5.5, 0.05),
 # plot!(ϵ_1_array[1:160],(-4.7*(ϵ_1_array[1:160] .- 7.5)).^(1/2) .+ 5)
 
 
-savefig("figs/important_figs/H_eff/analytics_only.png")
+# savefig("figs/important_figs/H_eff/analytics_only.png")
